@@ -1,0 +1,28 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_POPUP_RADIOBUTTON
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_popup_radiobutton.
+
+START-OF-SELECTION .
+
+  CALL FUNCTION 'K_KKB_POPUP_RADIO2'
+    EXPORTING
+      i_title         = 'teste'
+      i_text1         = 'teste 2'
+      i_text2         = 'teste 3'
+      i_default       = 'nao sei pra que serve'
+* IMPORTING
+*   I_RESULT        =
+* EXCEPTIONS
+*   CANCEL          = 1
+*   OTHERS          = 2
+            .
+  IF sy-subrc <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.

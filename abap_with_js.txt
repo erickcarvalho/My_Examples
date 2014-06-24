@@ -1,0 +1,45 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_BIND_TABLE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_bind_table.
+
+DATA: BEGIN OF line,
+        comp TYPE i,
+      END OF line.
+DATA itab LIKE STANDARD TABLE OF line.
+
+DATA source TYPE string.
+DATA js_processor TYPE REF TO cl_java_script.
+js_processor = cl_java_script=>create( ).
+
+js_processor->bind( EXPORTING name_obj  = 'abap'
+                              name_prop = 'Itab'
+                    CHANGING  data      = itab ).
+DO 5 TIMES.
+  line-comp = sy-index.
+  APPEND line TO itab.
+ENDDO.
+
+CONCATENATE 'var len = abap.Itab.length;           '
+            'var sum = 0;                          '
+            'for (var i = 0; i < len; i++)         '
+            '{                                     '
+            '  sum += Number(abap.Itab[i].comp)    '
+            '}                                     '
+            'abap.Itab.appendLine();                   '
+            'len++;                                '
+            'abap.Itab.appendLine();                   '
+            'len++;                                '
+            'abap.Itab[len-1].comp=sum;            '
+   INTO source SEPARATED BY cl_abap_char_utilities=>cr_lf.
+
+js_processor->evaluate( java_script = source ).
+
+LOOP AT itab INTO line.
+  WRITE / line-comp.
+ENDLOOP.

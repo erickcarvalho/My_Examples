@@ -1,0 +1,63 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_ITAB_INITIAL
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  Z_ITAB_INITIAL.
+
+*# with IF
+DATA: itab TYPE STANDARD TABLE OF t100.
+
+IF itab IS INITIAL.
+  " itab is empty
+  " more logic here
+ENDIF.
+
+*# or with CHECK
+CHECK itab IS INITIAL.
+" itab is empty
+" more logic here
+
+*Using LINES
+IF LINES( itab ) EQ 0.
+  " itab is empty
+  "
+ELSE.
+  " itab has entries
+ENDIF.
+
+* Same with CHECK
+*Using DESCRIBE and SY-TFILL
+DESCRIBE TABLE itab.
+IF sy-tfill IS INITIAL.
+  " itab is empty
+  "
+ELSE.
+  " itab has entries
+ENDIF.
+
+
+*Using READ
+READ TABLE itab TRANSPORTING NO FIELDS INDEX 1.
+IF sy-subrc NE 0.
+  " itab is empty
+  "
+ELSE.
+  " itab has entries
+ENDIF.
+
+* Same with check
+*Using LOOP
+DATA: ls_itab LIKE LINE OF itab.
+LOOP AT itab INTO ls_itab FROM 1.
+  EXIT.
+ENDLOOP.
+IF sy-subrc NE 0.
+  " itab is empty
+  "
+ELSE.
+  " itab has entries
+ENDIF.

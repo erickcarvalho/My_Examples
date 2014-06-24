@@ -1,0 +1,81 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_COLOR
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT zcolor.
+DATA: BEGIN OF tp OCCURS 10,
+id TYPE char1,
+nr TYPE char8,
+text TYPE char255,
+END OF tp.
+DATA: length TYPE i VALUE 8, " Length of list
+teststring(15) TYPE c VALUE '012345678901234',
+width TYPE i. " Width of list
+
+START-OF-SELECTION.
+  PERFORM heading.
+  PERFORM output_body.
+*&amp;---------------------------------------------------------------------*
+*&amp; Form HEADING
+*----------------------------------------------------------------------*
+FORM heading.
+  FORMAT INTENSIFIED OFF. " Remove any INTENSIFIED
+  ULINE AT (width). " Upper frame border
+  FORMAT COLOR COL_HEADING INTENSIFIED." Title color
+  WRITE: / sy-vline. " Left border
+  WRITE: 'No |Colour        |intensified    |intensified off|',
+  'inverse       ' NO-GAP.
+  WRITE: AT width sy-vline. " Right border
+  ULINE AT (width). " Line below titles
+  FORMAT COLOR OFF.
+ENDFORM. "HEADING
+*&---------------------------------------------------------------------*
+*& Form OUTPUT_BODY
+*----------------------------------------------------------------------*
+FORM output_body.
+  DO length TIMES.
+    PERFORM write_line USING sy-index.
+  ENDDO.
+ENDFORM. "OUTPUT_BODY
+*&amp;---------------------------------------------------------------------*
+*&amp; Form WRITE_LINE
+*----------------------------------------------------------------------*
+FORM write_line USING count TYPE i.
+  DATA: help(14) TYPE c,
+  count1 TYPE i.
+  count1 = sy-index - 1.
+  WRITE: / sy-vline NO-GAP.
+  WRITE: (4) count1 COLOR COL_KEY INTENSIFIED NO-GAP.
+  WRITE: sy-vline NO-GAP.
+  CASE count1.
+    WHEN '0'.
+      help = 'COL_BACKGROUND'.
+    WHEN '1'.
+      help = 'COL_HEADING'.
+    WHEN '2'.
+      help = 'COL_NORMAL'.
+    WHEN '3'.
+      help = 'COL_TOTAL'.
+    WHEN '4'.
+      help = 'COL_KEY'.
+    WHEN '5'.
+      help = 'COL_POSITIVE'.
+    WHEN '6'.
+      help = 'COL_NEGATIVE'.
+    WHEN '7'.
+      help = 'COL_GROUP'.
+  ENDCASE.
+  WRITE: help COLOR COL_KEY INTENSIFIED NO-GAP.
+  WRITE: sy-vline NO-GAP.
+  WRITE: teststring COLOR = count1 INTENSIFIED NO-GAP.
+  WRITE: sy-vline NO-GAP.
+  WRITE: teststring COLOR = count1 INTENSIFIED OFF NO-GAP.
+  WRITE: sy-vline NO-GAP.
+  WRITE: teststring COLOR = count1 INVERSE NO-GAP.
+  WRITE AT width sy-vline NO-GAP.
+ENDFORM. "WRITE_LINE
+*-- End of Program

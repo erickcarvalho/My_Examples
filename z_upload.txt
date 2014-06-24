@@ -1,0 +1,86 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_UPLOAD
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_upload.
+
+TYPES: BEGIN OF ty_data,
+       nome          TYPE string,
+       endereco      TYPE string,
+       personalidade TYPE string,
+      END OF ty_data.
+
+DATA : it_data TYPE TABLE OF ty_data,
+       wa_data TYPE ty_data.
+
+TYPES: BEGIN OF ty_up,
+         val TYPE char120,
+       END OF ty_up.
+
+DATA : it_up  TYPE TABLE OF ty_up,
+       wa_up  TYPE ty_up.
+
+CALL FUNCTION 'GUI_UPLOAD'
+  EXPORTING
+    filename                       = 'C:\test\erick.txt'
+*    FILE                          = 'ASC'
+*    HAS_FIELD_SEPARATOR           = ' '
+*    HEADER_LENGTH                 = 0
+*    READ_BY_LINE                  = 'X'
+*    DAT_MODE                      = ' '
+*    CODEPAGE                      = ' '
+*    IGNORE_CERR                   = ABAP_TRUE
+*    REPLACEMENT                   = '#'
+*    CHECK_BOM                     = ' '
+*    VIRUS_SCAN_PROFILE            =
+*  IMPORTING
+*    FILELENGTH                    =
+*    HEADER                        =
+  TABLES
+    data_tab                      = it_up
+  EXCEPTIONS
+    file_open_error               = 1
+    file_read_error               = 2
+    no_batch                      = 3
+    gui_refuse_filetransfer       = 4
+    invalid_                      = 5
+    no_authority                  = 6
+    unknown_error                 = 7
+    bad_data_format               = 8
+    header_not_allowed            = 9
+    separator_not_allowed         = 10
+    header_too_long               = 11
+    unknown_dp_error              = 12
+    access_denied                 = 13
+    dp_out_of_memory              = 14
+    disk_full                     = 15
+    dp_timeout                    = 16
+    OTHERS                        = 17
+          .
+*IF sy-subrc <> 0.
+*  MESSAGE id sy-msgid  sy-msgty number sy-msgno
+*          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*ENDIF.
+
+LOOP AT it_up INTO wa_up.
+
+  SPLIT: wa_up AT ';'
+         INTO  wa_data-nome
+               wa_data-endereco
+               wa_data-personalidade .
+
+  APPEND wa_data TO it_data .
+
+  CLEAR : wa_data ,
+          wa_up .
+ENDLOOP.
+
+LOOP AT it_data INTO wa_data.
+  WRITE: / wa_data-nome, wa_data-endereco, wa_data-personalidade.
+ENDLOOP.
+
+BREAK-POINT .

@@ -1,0 +1,91 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SET_HANDLER_01
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_set_handler_01.
+
+
+*&---------------------------------------------------------------------*
+*& This code snippet shows the Event Handler Class's Definition
+*& and implementation
+*&---------------------------------------------------------------------*
+*    Definition
+CLASS lcl_event_receiver DEFINITION.
+
+  PUBLIC SECTION.
+    METHODS:
+      handle_data_changed  FOR EVENT data_changed
+                           OF cl_gui_alv_grid
+                           IMPORTING er_data_changed.
+
+ENDCLASS.                    "lcl_event_receiver DEFINITION
+
+
+*&---------------------------------------------------------------------*
+*& This code snippet sets the handler of the evnets for the OO ALV
+*&---------------------------------------------------------------------*
+*    Data Declaration
+DATA: g_grid           TYPE REF TO cl_gui_alv_grid,
+      g_event_receiver TYPE REF TO lcl_event_receiver.
+
+*
+*   Registering the Edit event
+CALL METHOD g_grid->register_edit_event
+  EXPORTING
+    i_event_id = cl_gui_alv_grid=>mc_evt_enter.
+*
+*   Event Handler
+CREATE OBJECT g_event_receiver.
+*
+*   Event listner method for Edit Event
+SET HANDLER g_event_receiver->handle_data_changed FOR g_grid.
+*
+*   calling the instance of the ALV
+CALL METHOD g_grid->set_table_for_first_display
+  CHANGING
+    it_fieldcatalog = gt_fieldcat
+    it_outtab       = gt_outtab[].
+
+* Class Implementation
+CLASS lcl_event_receiver IMPLEMENTATION.
+  METHOD  handle_data_changed.
+*
+*   Local data
+    DATA: le_row TYPE i,
+          le_value TYPE c,
+          le_col TYPE i,
+          les_row_id TYPE lvc_s_row,
+          les_col_id TYPE lvc_s_col,
+          les_row_no TYPE lvc_s_roid.
+*
+*   Getting Current Cell
+    CALL METHOD g_grid->get_current_cell
+      IMPORTING
+        e_row     = le_row
+        e_value   = le_value
+        e_col     = le_col
+        es_row_id = les_row_id
+        es_col_id = les_col_id
+        es_row_no = les_row_no.
+*
+*   Total number of tables
+    DESCRIBE TABLE  gt_outtab LINES sy-index.
+*
+*   Getting next row
+    les_row_id-index  = les_row_id-index  + 1.
+    les_row_no-row_id = les_row_no-row_id + 1.
+*
+*   Set the Next row
+    IF les_row_id-index LE sy-index.
+      CALL METHOD g_grid->set_current_cell_via_id
+        EXPORTING
+          is_row_id    = les_row_id
+          is_column_id = les_col_id
+          is_row_no    = les_row_no.
+    ENDIF.
+  ENDMETHOD.                    "handle_data_changed
+ENDCLASS.                    "lcl_event_receiver IMPLEMENTATION

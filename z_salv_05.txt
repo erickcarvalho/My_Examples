@@ -1,0 +1,167 @@
+* gravar layout when the user has chosen some specific layout
+
+REPORT  z_salv_05.
+
+* DEFINITION
+CLASS lcl_report DEFINITION.
+*
+  PUBLIC SECTION.
+*   Final output table
+    TYPES: BEGIN OF ty_vbak,
+              vbeln TYPE vbak-vbeln,
+              erdat TYPE erdat,
+              auart TYPE auart,
+              kunnr TYPE kunnr,
+           END   OF ty_vbak.
+*
+    DATA: t_vbak TYPE STANDARD TABLE OF ty_vbak.
+    DATA: o_alv TYPE REF TO cl_salv_table. "* ALV reference
+*
+    METHODS:
+      get_data, "data selection*
+      generate_output. " Generating output
+
+  PRIVATE SECTION.
+*   Default Pf Status
+    METHODS:
+      set_pf_status
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+*   Set Top of page
+    METHODS:
+      set_top_of_page
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+*
+*   Set End of page
+    METHODS:
+      set_end_of_page
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+
+ENDCLASS.                    "lcl_report DEFINITION
+
+* IMPLEMENTATION
+CLASS lcl_report IMPLEMENTATION.
+* GETTING DATA
+  METHOD get_data.
+*   data selection
+    SELECT vbeln erdat auart kunnr
+           INTO  TABLE t_vbak
+           FROM  vbak
+           UP TO 20 ROWS.
+*
+  ENDMETHOD.                    "get_data
+
+*  GENERATING THE OUTPUT
+  METHOD generate_output.
+
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = t_vbak ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+
+    CALL METHOD set_pf_status
+      CHANGING
+        co_alv = o_alv.
+
+    CALL METHOD me->set_top_of_page
+      CHANGING
+        co_alv = o_alv.
+*
+*   Calling the End of Page method
+    CALL METHOD me->set_end_of_page
+      CHANGING
+        co_alv = o_alv.
+
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+
+  METHOD set_pf_status.
+*
+    DATA: lo_functions TYPE REF TO cl_salv_functions_list.
+*   Default Functions
+    lo_functions = co_alv->get_functions( ).
+    lo_functions->set_default( abap_true ).
+*
+  ENDMETHOD.                    "set_pf_status
+*
+  METHOD set_top_of_page.
+*
+    DATA: lo_header  TYPE REF TO cl_salv_form_layout_grid,
+          lo_h_label TYPE REF TO cl_salv_form_label,
+          lo_h_flow  TYPE REF TO cl_salv_form_layout_flow.
+*
+*   header object
+    CREATE OBJECT lo_header.
+
+*   information in Bold
+    lo_h_label = lo_header->create_label( row = 1 column = 1 ).
+    lo_h_label->set_text( 'Header in Bold' ).
+*
+*   information in tabular format
+    lo_h_flow = lo_header->create_flow( row = 2  column = 1 ).
+    lo_h_flow->create_text( text = 'This is text of flow' ).
+*
+    lo_h_flow = lo_header->create_flow( row = 3  column = 1 ).
+    lo_h_flow->create_text( text = 'Number of Records in the output' ).
+*
+    lo_h_flow = lo_header->create_flow( row = 3  column = 2 ).
+    lo_h_flow->create_text( text = 20 ).
+*
+*   set the top of list using the header for Online.
+    co_alv->set_top_of_list( lo_header ).
+*
+*   set the top of list using the header for Print.
+    co_alv->set_top_of_list_print( lo_header ).
+*
+  ENDMETHOD.                    "set_top_of_page
+*
+  METHOD set_end_of_page.
+*
+    DATA: lo_footer  TYPE REF TO cl_salv_form_layout_grid,
+          lo_f_label TYPE REF TO cl_salv_form_label,
+          lo_f_flow  TYPE REF TO cl_salv_form_layout_flow.
+*
+*   footer object
+    CREATE OBJECT lo_footer.
+*
+*   information in bold
+    lo_f_label = lo_footer->create_label( row = 1 column = 1 ).
+    lo_f_label->set_text( 'Footer .. here it goes' ).
+*
+*   tabular information
+    lo_f_flow = lo_footer->create_flow( row = 2  column = 1 ).
+    lo_f_flow->create_text( text = 'This is text of flow in footer' ).
+*
+    lo_f_flow = lo_footer->create_flow( row = 3  column = 1 ).
+    lo_f_flow->create_text( text = 'Footer number' ).
+*
+    lo_f_flow = lo_footer->create_flow( row = 3  column = 2 ).
+    lo_f_flow->create_text( text = 1 ).
+*
+*   Online footer
+    co_alv->set_end_of_list( lo_footer ).
+*
+*   Footer in print
+    co_alv->set_end_of_list_print( lo_footer ).
+*
+  ENDMETHOD.                    "set_end_of_page
+
+ENDCLASS.                    "lcl_report IMPLEMENTATION
+
+
+START-OF-SELECTION.
+  DATA: lo_report TYPE REF TO lcl_report.
+*
+  CREATE OBJECT lo_report.
+*
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).

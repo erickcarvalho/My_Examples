@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SIMPLE_JOIN
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_simple_join.
+
+TYPES: BEGIN OF ty_sbook,
+        carrid TYPE sbook-carrid,
+        connid TYPE sbook-connid,
+        fldate TYPE sbook-fldate,
+        name   TYPE scustom-name,
+       END OF ty_sbook.
+
+DATA: wa_sbook TYPE ty_sbook,
+      it_sbook TYPE TABLE OF ty_sbook.
+
+START-OF-SELECTION.
+
+  SELECT sbook~carrid sbook~connid sbook~fldate scustom~name
+    FROM sbook
+    INNER JOIN scustom
+    ON sbook~mandt = scustom~mandt AND
+       sbook~customid = scustom~id
+    INTO TABLE it_sbook
+    UP TO 200 ROWS.
+
+  LOOP AT it_sbook INTO wa_sbook.
+    WRITE: / wa_sbook-carrid,
+             wa_sbook-connid,
+             wa_sbook-fldate,
+             wa_sbook-name.
+  ENDLOOP.

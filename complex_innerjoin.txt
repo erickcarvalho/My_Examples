@@ -1,0 +1,39 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_COMPLEX_INNERJOIN
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_complex_innerjoin.
+
+*--Select query to pick the data from table VBRK
+*VBRP and VBPA using inner join
+SELECT a~vbeln                            "Billing document
+       a~fkdat                            "Billing date
+       a~fktyp                            "Billing category
+       a~fkart                            "Billing type
+       a~vtweg                            "Distribution channel
+       a~knumv                            "Number of doc condition
+       b~posnr                            "Billing item
+       b~matnr                            "Material Number
+       b~werks                            "Plant
+       b~vgbel                            "Referance
+       b~netwr                            "Net value of billing item
+       b~wavwr                            "Cost in document currency
+       c~kunnr                            "Partner function
+       FROM vbrk AS a
+       INNER JOIN vbrp AS b
+       ON vbeln EQ vbeln
+       INNER JOIN vbpa AS c
+       ON  vbeln EQ vbeln
+      AND bposnr EQ cposnr
+       INTO CORRESPONDING FIELDS OF TABLE it_vbrp
+       WHERE fkdat IN s_erdat
+       AND   parvw EQ 'ZS'.
+
+IF sy-subrc EQ 0.
+*--Sort table by
+  SORT it_vbrp BY vgbel1.
+ENDIF.

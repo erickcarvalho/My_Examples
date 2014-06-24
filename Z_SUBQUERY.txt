@@ -1,0 +1,22 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SUBQUERY
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_subquery.
+
+DATA: it_sflight TYPE STANDARD TABLE OF sflight ,
+      sflight_wa LIKE LINE OF it_sflight.
+
+SELECT * FROM sflight AS f INTO sflight_wa
+    WHERE seatsocc < f~seatsmax
+      AND EXISTS ( SELECT * FROM spfli
+                     WHERE carrid = f~carrid
+                       AND connid = f~connid
+                       AND cityfrom = 'FRANKFURT'
+                       AND cityto = 'NEW YORK' )
+      AND fldate BETWEEN '19990101' AND '19990331'.
+ENDSELECT.

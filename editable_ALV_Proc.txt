@@ -1,0 +1,237 @@
+REPORT z_editable_alv .
+" Conjunto de tipos
+TYPE-POOLS : slis.
+
+" Tipos
+TYPES :
+  BEGIN OF ty_selfield,
+    index TYPE slis_selfield-tabindex,
+  END OF   ty_selfield.
+
+" Estruturas e tabelas internas
+DATA :
+  it_out   TYPE TABLE OF sflight,
+  st_out   TYPE sflight,
+  it_index TYPE TABLE OF ty_selfield,
+  st_index TYPE ty_selfield.
+
+" Estruturas e tabelas intenas ( ALV )
+DATA :
+  it_fieldcat TYPE TABLE OF slis_fieldcat_alv,
+  st_layout   TYPE          slis_layout_alv.
+
+" Fiels-symbols
+FIELD-SYMBOLS : <slis_fieldcat_alv> TYPE ANY .
+
+START-OF-SELECTION.
+
+  " Faz o select da tabela.
+  PERFORM : f_select,
+" Mostra ALV com os dados
+            f_alv.
+
+END-OF-SELECTION.
+
+*&---------------------------------------------------------------------*
+*&      Form  F_SELECT
+*&---------------------------------------------------------------------*
+FORM f_select .
+
+  SELECT *
+    FROM sflight
+    INTO TABLE it_out
+    WHERE carrid = 'AA'.
+
+ENDFORM.                    " F_SELECT
+
+*&---------------------------------------------------------------------*
+*&      Form  F_ALV
+*&---------------------------------------------------------------------*
+FORM f_alv .
+
+  " Criação da tabela contendo as informações dos campos que serão mostrados no ALV
+  PERFORM : f_fieldcat,
+" Criação da estrutura contendo informações do layout do ALV
+            f_layout.
+  " Criação do ALV
+  PERFORM : f_relatorio TABLES it_fieldcat
+                               it_out
+                        USING  sy-repid
+                               'F_SET_PF_STATUS'
+                               'F_USER_COMMAND'
+                               st_layout.
+
+ENDFORM.                    " F_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FIELDCAT
+*&---------------------------------------------------------------------*
+FORM f_fieldcat .
+  " Função para trazer os dados dos campos do ALV baseada numa tabela transparente.
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name       = 'SFLIGHT'
+    CHANGING
+      ct_fieldcat            = it_fieldcat
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                    " F_FIELDCAT
+
+*&---------------------------------------------------------------------*
+*&      Form  F_LAYOUT
+*&---------------------------------------------------------------------*
+FORM f_layout .
+
+  st_layout-zebra = 'X'.
+  st_layout-colwidth_optimize = 'X'.
+
+ENDFORM.                    " F_LAYOUT
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FUNCTION
+*&---------------------------------------------------------------------*
+FORM f_relatorio TABLES fieldcat
+                        outtab
+                 USING  repid
+                        status
+                        command
+                        layout
+    .
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program       = repid
+      i_callback_pf_status_set = status
+      i_callback_user_command  = command
+      is_layout                = layout
+      it_fieldcat              = fieldcat[]
+      i_save                   = 'X'
+    TABLES
+      t_outtab                 = outtab
+    EXCEPTIONS
+      program_error            = 1
+      OTHERS                   = 2.
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+
+
+ENDFORM.                    " F_FUNCTION
+
+*&---------------------------------------------------------------------*
+*&      Form  SET_PF_STATUS
+*&---------------------------------------------------------------------*
+*       Setting custom PF-Status
+*----------------------------------------------------------------------*
+*      -->RT_EXTAB   Excluding table
+*----------------------------------------------------------------------*
+FORM f_set_pf_status USING rt_extab TYPE slis_t_extab.
+
+  SET PF-STATUS 'Z_STANDARD'.
+
+ENDFORM.                    "SET_PF_STATUS
+
+
+*&---------------------------------------------------------------------*
+*&      Form  user_command
+*&---------------------------------------------------------------------*
+*       Handling custom function codes
+*----------------------------------------------------------------------*
+*      -->R_UCOMM      Function code value
+*      -->RS_SELFIELD  Info. of cursor position in ALV
+*----------------------------------------------------------------------*
+FORM f_user_command USING  vl_ucomm    LIKE sy-ucomm
+                           st_selfield TYPE slis_selfield.
+  " Declarações das variáveis locais
+  DATA :
+    it_out_temp      TYPE TABLE OF sflight,
+    st_out_temp      TYPE sflight,
+    it_fieldcat_temp TYPE TABLE OF slis_fieldcat_alv,
+    st_fieldcat_temp TYPE slis_fieldcat_alv.
+
+  BREAK-POINT.
+  " Verifica a ação do Usuário.
+  CASE vl_ucomm.
+      " Caso o usuário tenha selecionado um registro no ALV.
+    WHEN '&IC1'.
+* Trata fieldcat para abrir para edição todos os campos exceto os campos chaves
+      it_fieldcat_temp = it_fieldcat.
+      st_fieldcat_temp-edit = 'X'.
+      MODIFY it_fieldcat_temp FROM st_fieldcat_temp
+      TRANSPORTING edit
+      WHERE key IS INITIAL.
+
+* Trata dados do registro selecionado.
+      READ TABLE it_out INTO st_out
+        INDEX st_selfield-tabindex.
+      APPEND st_out TO it_out_temp.
+
+* Cria um novo ALV usando o mesmo perform só que sem User_command e com tabelas <>.
+      PERFORM : f_relatorio TABLES it_fieldcat_temp
+                                   it_out_temp
+                            USING  sy-repid
+                                   ' '
+                                   ' '
+                                   st_layout.
+      BREAK-POINT.
+      "  Se o botão 'Salvar' não for pressionado então a modificação não irá ser
+      " atualizado na tabela 'IT_OUT_TEMP'.
+      "  Verifica o primeiro (e Unico) registro da tabela
+      READ TABLE it_out_temp INTO st_out_temp
+        INDEX 1.
+
+      "  Verifica se esse registro foi modificado.
+      IF st_out_temp <> st_out.
+        "  Atualiza a tabela interna com as informações modificadas
+        MODIFY it_out FROM st_out_temp
+          INDEX st_selfield-tabindex.
+        "  Move a informação da linha do registro para uma estrutura que aliemnta a tabela
+        MOVE st_selfield-tabindex TO st_index-index.
+        APPEND st_index TO it_index.
+      ENDIF.
+      "  Muito importante este comando pois isso atualiza as alterações feitas na tabela,
+      " e mostra no ALV.
+      st_selfield-refresh = 'X'.
+      " Caso o Usuário tenha clicado no botão 'Salvar'.
+    WHEN 'SAVE'.
+      " Verifica se teve alteração.
+      IF it_index IS NOT INITIAL.
+        LOOP AT it_index INTO st_index.
+          " Lê a tabela principal no registro informado na tabela de registros modiicados.
+          READ TABLE it_out INTO st_out
+            INDEX st_index-index.
+          " Move os dados da estrutura modificada para uma estrutura local temporária.
+          MOVE-CORRESPONDING st_out TO st_out_temp.
+          " Alimenta uma tabela auxiliar com os registros alterados.
+          APPEND st_out_temp TO it_out_temp.
+        ENDLOOP.
+
+        "  Usa a tabela alimentada com os registros modificados e atualiza a tabela transparente.
+        "  Muito Cuidado em usar essas coisas de atualizar, incluir e excluir dados de tabelas
+        " transparente.
+        MODIFY sflight FROM TABLE it_out_temp.
+        MESSAGE 'A Tabela Sflight foi alterada com Sucesso' TYPE 'S'.
+        " Caso não teve alteração - Mostra a mensagem
+      ELSE.
+        MESSAGE 'A Tabela Sflight não teve alteração!' TYPE 'W'.
+      ENDIF.
+      " Caso o usuário tenha clicado no botão 'BACK' ou 'EXIT'
+    WHEN 'BACK' OR 'EXIT'.
+      LEAVE PROGRAM.
+      " Qualquer outro caso.
+    WHEN OTHERS.
+
+  ENDCASE.
+
+
+ENDFORM.                    "user_command

@@ -1,0 +1,73 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_BROWSE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_browse.
+
+DATA: v_or_html_viewer TYPE REF TO cl_gui_html_viewer,
+      v_or_container TYPE REF TO cl_gui_custom_container,
+      g_init,
+      g_frame(1255),
+      url(2048) VALUE 'http://www.google.com.br'.
+
+START-OF-SELECTION.
+
+  CALL SCREEN 0100 .
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS '0100'.
+*  SET TITLEBAR 'xxx'.
+
+  IF g_init IS INITIAL.
+    CREATE OBJECT v_or_container
+      EXPORTING
+        container_name = 'CUSTOM'.
+
+    CREATE OBJECT v_or_html_viewer
+      EXPORTING
+        parent = v_or_container.
+
+    IF sy-subrc NE 0.
+    ENDIF .
+
+    CALL METHOD cl_gui_cfw=>flush
+      EXCEPTIONS
+        cntl_system_error = 1.
+
+    IF sy-subrc NE 0.
+    ENDIF.
+
+    g_init = 'X'.
+
+  ENDIF.
+
+ENDMODULE                    "status_0100 OUTPUT
+.                 " STATUS_0100 OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+  CASE sy-ucomm .
+    WHEN 'SHOW_URL'.
+      CALL METHOD v_or_html_viewer->show_url
+        EXPORTING
+          url        = url
+          frame      = g_frame
+        EXCEPTIONS
+          cntl_error = 1.
+    WHEN 'CANCEL' OR 'BACK' OR 'EXIT'.
+      LEAVE PROGRAM.
+  ENDCASE.
+
+ENDMODULE.                 " USER_COMMAND_0100  INPUT

@@ -1,0 +1,137 @@
+REPORT  z_salv_08.
+
+* DEFINITION
+CLASS lcl_report DEFINITION.
+*
+  PUBLIC SECTION.
+*   Final output table
+    TYPES: BEGIN OF ty_vbak,
+              vbeln TYPE vbak-vbeln,
+              erdat TYPE erdat,
+              auart TYPE auart,
+              kunnr TYPE kunnr,
+           END   OF ty_vbak.
+*
+    DATA: t_vbak TYPE STANDARD TABLE OF ty_vbak.
+    DATA: o_alv TYPE REF TO cl_salv_table. "* ALV reference
+*
+    METHODS:
+      get_data, "data selection*
+      generate_output. " Generating output
+
+  PRIVATE SECTION.
+*   Set the various column properties
+    METHODS:
+      set_hotspot_vbeln
+        CHANGING
+          co_alv      TYPE REF TO cl_salv_table
+          co_report   TYPE REF TO lcl_report.
+*
+*   Event Handler for HOTSPOT event
+    METHODS:
+      on_link_click
+        FOR EVENT link_click OF cl_salv_events_table
+          IMPORTING
+            row
+            column  .
+
+ENDCLASS.                    "lcl_report DEFINITION
+
+
+* GLOBAL VARIABLE - I NEEDED TO PUT THIS DECLARATION HERE, BECAUSE
+* ABAP IS FUCKING DONKEY IDIOT =D
+
+DATA: lo_report TYPE REF TO lcl_report.
+*
+CREATE OBJECT lo_report.
+
+* IMPLEMENTATION
+CLASS lcl_report IMPLEMENTATION.
+* GETTING DATA
+  METHOD get_data.
+*   data selection
+    SELECT vbeln erdat auart kunnr
+           INTO  TABLE t_vbak
+           FROM  vbak
+           UP TO 20 ROWS.
+*
+  ENDMETHOD.                    "get_data
+
+*  GENERATING THE OUTPUT
+  METHOD generate_output.
+
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = t_vbak ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+
+    CALL METHOD set_hotspot_vbeln
+      CHANGING
+        co_alv    = o_alv
+        co_report = lo_report.
+
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+
+  METHOD set_hotspot_vbeln.
+*
+*...HotSpot
+    DATA: lo_cols_tab TYPE REF TO cl_salv_columns_table,
+          lo_col_tab  TYPE REF TO cl_salv_column_table.
+*
+*   get Columns object
+    lo_cols_tab = co_alv->get_columns( ).
+*
+*   Get VBELN column
+    TRY.
+        lo_col_tab ?= lo_cols_tab->get_column( 'ERDAT' ).
+      CATCH cx_salv_not_found.
+    ENDTRY.
+*
+*   Set the HotSpot for VBELN Column
+    TRY.
+        CALL METHOD lo_col_tab->set_cell_type
+          EXPORTING
+            value = if_salv_c_cell_type=>hotspot.
+        .
+      CATCH cx_salv_data_error .
+    ENDTRY.
+*
+*...Events
+    DATA: lo_events TYPE REF TO cl_salv_events_table.
+*
+*   all events
+    lo_events = o_alv->get_event( ).
+*
+*   event handler
+    SET HANDLER co_report->on_link_click FOR lo_events.
+*
+  ENDMETHOD.                    "set_hotspot_vbeln
+*
+* Handles the UI on the VBELN (HotSpot)
+  METHOD on_link_click.
+*
+    DATA: la_vbak TYPE ty_vbak.
+*
+*   Get the Sales Order number from the table
+    READ TABLE lo_report->t_vbak INTO la_vbak INDEX row.
+    IF la_vbak-erdat IS NOT INITIAL.
+      MESSAGE i398(00) WITH 'You have selected' la_vbak-erdat .
+    ENDIF.
+*
+  ENDMETHOD.                    "on_link_click
+*
+ENDCLASS .                    "lcl_report IMPLEMENTATION
+
+
+START-OF-SELECTION.
+
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).

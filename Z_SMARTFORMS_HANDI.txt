@@ -1,0 +1,102 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SMARTFORMS_HANDI
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_smartforms_handi.
+
+DATA: it_ekko TYPE TABLE OF ekko,
+      wa_ekko LIKE LINE OF it_ekko,
+      it_ekpo TYPE TABLE OF ekpo,
+      wa_ekpo LIKE LINE OF it_ekpo.
+
+DATA: vl_fm_name TYPE rs38l_fnam .
+CONSTANTS : c_form TYPE rs38l_fnam VALUE 'Z_ERICK_SMARTFORMS'.
+
+SELECT-OPTIONS: so_ebeln FOR wa_ekko-ebeln.
+
+START-OF-SELECTION.
+
+  SELECT * FROM ekko INTO TABLE it_ekko
+     UP TO 200 ROWS
+     WHERE ebeln IN so_ebeln.
+
+  SELECT * FROM ekpo INTO TABLE it_ekpo
+  WHERE ebeln IN so_ebeln.
+
+  SORT: it_ekko BY ebeln, it_ekpo BY ebeln.
+
+* HEADER
+  LOOP AT it_ekpo INTO wa_ekpo.
+*    ITEM
+    AT NEW ebeln.
+      READ TABLE it_ekko INTO wa_ekko
+          WITH KEY ebeln = wa_ekpo-ebeln
+            BINARY SEARCH.
+    ENDAT.
+  ENDLOOP.
+
+*  Executada a função que retorna o nome da função que chama o formulário
+  PERFORM z_busca_nome_function.
+
+* Executa o function que chama o formulário.
+  PERFORM z_call_form.
+
+*&---------------------------------------------------------------------*
+*&      Form  z_busca_nome_function
+*&---------------------------------------------------------------------*
+FORM z_busca_nome_function .
+
+  CALL FUNCTION 'SSF_FUNCTION_MODULE_NAME'
+    EXPORTING
+      formname                 = c_form
+*   VARIANT                  = ' '
+*   DIRECT_CALL              = ' '
+   IMPORTING
+     fm_name                  = vl_fm_name
+ EXCEPTIONS
+   no_form                  = 1
+   no_function_module       = 2
+   OTHERS                   = 3
+            .
+ENDFORM.                    " z_busca_nome_function
+*&---------------------------------------------------------------------*
+*&      Form  z_call_form
+*&---------------------------------------------------------------------*
+FORM z_call_form .
+
+  CALL FUNCTION vl_fm_name
+* EXPORTING
+*   ARCHIVE_INDEX              =
+*   ARCHIVE_INDEX_TAB          =
+*   ARCHIVE_PARAMETERS         =
+*   CONTROL_PARAMETERS         =
+*   MAIL_APPL_OBJ              =
+*   MAIL_RECIPIENT             =
+*   MAIL_SENDER                =
+*   OUTPUT_OPTIONS             =
+*   USER_SETTINGS              = 'X'
+* IMPORTING
+*   DOCUMENT_OUTPUT_INFO       =
+*   JOB_OUTPUT_INFO            =
+*   JOB_OUTPUT_OPTIONS         =
+    TABLES
+      it_ekko                   = it_ekko
+      it_ekpo                   = it_ekpo
+   EXCEPTIONS
+     formatting_error           = 1
+     internal_error             = 2
+     send_error                 = 3
+     user_canceled              = 4
+     OTHERS                     = 5
+            .
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+
+ENDFORM.                    " z_call_form

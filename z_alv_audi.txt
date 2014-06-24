@@ -1,0 +1,132 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_ALV_TOOTIPED
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_alv_tootiped.
+
+*
+*----------------------------------------------------------------------*
+*       CLASS lcl_report DEFINITION
+*----------------------------------------------------------------------*
+CLASS lcl_report DEFINITION.
+*
+  INCLUDE <icon> .
+  PUBLIC SECTION.
+*
+*   Final output table
+    TYPES: BEGIN OF ty_zerick,
+           cod        TYPE zerick-cod,
+           nome       TYPE zerick-nome,
+           endereco   TYPE zerick-endereco,
+           idade      TYPE zerick-idade,
+           status(10) TYPE c,
+           END   OF ty_zerick.
+*
+    DATA: it_zerick TYPE STANDARD TABLE OF ty_zerick,
+          wa_zerick LIKE LINE OF it_zerick .
+*
+*   ALV reference
+    DATA: o_alv TYPE REF TO cl_salv_table.
+*
+    METHODS:
+*     data selection
+      get_data,
+*
+*     Generating output
+      generate_output.
+
+  PRIVATE SECTION .
+    DATA: lo_functions            TYPE REF TO cl_salv_functions_list.
+    DATA: lo_functional_settings  TYPE REF TO cl_salv_functional_settings.
+
+ENDCLASS.                    "lcl_report DEFINITION
+
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_report IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+CLASS lcl_report IMPLEMENTATION.
+*
+  METHOD get_data.
+*   data selection
+    SELECT cod nome idade endereco status
+           FROM  zerick
+           INTO TABLE it_zerick .
+
+*
+  ENDMETHOD.                    "get_data
+*
+  METHOD generate_output.
+
+*    wa_zerick-status = icon_led_red.
+*    MODIFY it_zerick FROM wa_zerick TRANSPORTING status WHERE status = 0 .
+
+*    LOOP AT it_zerick INTO wa_zerick WHERE status = '0'.
+*      IF wa_zerick-status = '0'.
+*        wa_zerick-status = icon_led_red .
+*        MODIFY it_zerick FROM wa_zerick TRANSPORTING status WHERE status = '0'.
+*      ENDIF.
+*    ENDLOOP.
+
+*    LOOP AT it_zerick INTO wa_zerick WHERE status = '1'.
+*      IF wa_zerick-status = '1'.
+*        wa_zerick-status = icon_led_green .
+*        MODIFY it_zerick FROM wa_zerick TRANSPORTING status WHERE status = '1'.
+*      ENDIF.
+*    ENDLOOP.
+*
+*    READ TABLE it_zerick INTO wa_zerick  WITH KEY status = '0'.
+*    wa_zerick-status = icon_led_red .
+*    MODIFY it_zerick FROM wa_zerick TRANSPORTING status WHERE status = '0'.
+*
+*    READ TABLE it_zerick INTO wa_zerick WITH KEY status = '1'.
+*    wa_zerick-status = icon_led_green .
+*    MODIFY it_zerick FROM wa_zerick TRANSPORTING status WHERE status = '1'.
+
+    LOOP AT it_zerick INTO wa_zerick .
+
+      IF wa_zerick-status EQ 0 .
+        wa_zerick-status = icon_led_red .
+      ELSE .
+        wa_zerick-status = icon_led_green .
+
+      ENDIF .
+
+      MODIFY it_zerick FROM wa_zerick INDEX sy-tabix.
+
+    ENDLOOP.
+
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = it_zerick ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+
+    lo_functions = o_alv->get_functions( ).
+    lo_functions->set_all( abap_true ).
+
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+
+ENDCLASS.                    "lcl_report IMPLEMENTATION
+
+
+START-OF-SELECTION.
+  DATA: lo_report TYPE REF TO lcl_report.
+*
+  CREATE OBJECT lo_report.
+*
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).

@@ -1,0 +1,90 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SUPERSCREEN_03
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_superscreen_03.
+
+TABLES: mara.
+
+SELECTION-SCREEN BEGIN OF BLOCK bl01 WITH FRAME.
+
+PARAMETERS: rb_tela1 RADIOBUTTON GROUP rb01 USER-COMMAND muda_tela
+                                                  DEFAULT 'X',
+            rb_tela2 RADIOBUTTON GROUP rb01.
+
+SELECTION-SCREEN END OF BLOCK bl01.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK bl02 WITH FRAME.
+
+SELECT-OPTIONS: s_matnr FOR mara-matnr MODIF ID t1,
+                s_mtart FOR mara-mtart MODIF ID t1.
+
+SELECTION-SCREEN END OF BLOCK bl02.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK bl03 WITH FRAME.
+
+PARAMETERS: p_matnr TYPE mara-matnr MODIF ID t2,
+            p_mtart TYPE mara-mtart MODIF ID t2.
+
+SELECTION-SCREEN END OF BLOCK bl03.
+
+
+AT SELECTION-SCREEN OUTPUT.
+
+  PERFORM modifica_tela.
+
+*&---------------------------------------------------------------------*
+*&      Form  modifica_tela
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM modifica_tela .
+
+  LOOP AT SCREEN.
+
+    IF rb_tela1 = 'X'.
+
+      IF screen-group1 = 'T2'.
+        screen-invisible = 1.
+        screen-input     = 0.
+        screen-active    = 0.
+        MODIFY SCREEN.
+        CONTINUE.
+      ENDIF.
+
+      IF screen-group1 = 'T1'.
+        screen-invisible = 0.
+        screen-input     = 1.
+        screen-active    = 1.
+        MODIFY SCREEN.
+        CONTINUE.
+      ENDIF.
+
+    ELSE.
+
+      IF screen-group1 = 'T1'.
+        screen-invisible = 1.
+        screen-input     = 0.
+        screen-active    = 0.
+        MODIFY SCREEN.
+        CONTINUE.
+      ENDIF.
+
+      IF screen-group1 = 'T2'.
+        screen-invisible = 0.
+        screen-input     = 1.
+        screen-active    = 1.
+        MODIFY SCREEN.
+        CONTINUE.
+      ENDIF.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    " MODIFICA_TELA

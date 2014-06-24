@@ -1,0 +1,123 @@
+* gravar layout when the user has chosen some specific layout
+
+REPORT  z_salv_04.
+
+* DEFINITION
+CLASS lcl_report DEFINITION.
+*
+  PUBLIC SECTION.
+*   Final output table
+    TYPES: BEGIN OF ty_vbak,
+              vbeln TYPE vbak-vbeln,
+              erdat TYPE erdat,
+              auart TYPE auart,
+              kunnr TYPE kunnr,
+           END   OF ty_vbak.
+*
+    DATA: t_vbak TYPE STANDARD TABLE OF ty_vbak.
+    DATA: o_alv TYPE REF TO cl_salv_table. "* ALV reference
+*
+    METHODS:
+      get_data, "data selection*
+      generate_output. " Generating output
+
+  PRIVATE SECTION.
+*   setting the ALV - Header
+    METHODS:
+      set_pf_status
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table,
+
+      set_layout
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+
+ENDCLASS.                    "lcl_report DEFINITION
+
+* IMPLEMENTATION
+CLASS lcl_report IMPLEMENTATION.
+* GETTING DATA
+  METHOD get_data.
+*   data selection
+    SELECT vbeln erdat auart kunnr
+           INTO  TABLE t_vbak
+           FROM  vbak
+           UP TO 20 ROWS.
+*
+  ENDMETHOD.                    "get_data
+*
+* setting ALV
+  METHOD set_pf_status.
+*
+    DATA: lo_functions TYPE REF TO cl_salv_functions_list.
+*
+    lo_functions = co_alv->get_functions( ).
+    lo_functions->set_default( abap_true ).
+
+* ADD NEW FEATURES
+    co_alv->set_screen_status(
+     pfstatus      =  'SALV_STANDARD'
+     report        =  'SALV_DEMO_TABLE_SELECTIONS'
+     set_functions = co_alv->c_functions_all ).
+*
+  ENDMETHOD.                    "set_pf_status
+
+*  GENERATING THE OUTPUT
+  METHOD generate_output.
+
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = t_vbak ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+
+    CALL METHOD set_pf_status
+      CHANGING
+        co_alv = o_alv.
+
+*   Setting up the Layout
+    CALL METHOD set_layout
+      CHANGING
+        co_alv = o_alv.
+
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+
+  METHOD set_layout.
+*
+    DATA: lo_layout  TYPE REF TO cl_salv_layout,
+          lf_variant TYPE slis_vari,
+          ls_key    TYPE salv_s_layout_key.
+*
+*   get layout object
+    lo_layout = co_alv->get_layout( ).
+*
+*   set Layout save restriction
+*   1. Set Layout Key .. Unique key identifies the Differenet ALVs
+    ls_key-report = sy-repid.
+    lo_layout->set_key( ls_key ).
+*   2. Remove Save layout the restriction.
+    lo_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+*
+*   set initial Layout
+    lf_variant = 'DEFAULT'.
+    lo_layout->set_initial_layout( lf_variant ).
+*
+  ENDMETHOD.                    "set_layout
+
+ENDCLASS.                    "lcl_report IMPLEMENTATION
+
+
+START-OF-SELECTION.
+  DATA: lo_report TYPE REF TO lcl_report.
+*
+  CREATE OBJECT lo_report.
+*
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).

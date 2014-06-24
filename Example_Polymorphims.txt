@@ -1,0 +1,100 @@
+*In ABAP we can only redefine (override) a method of super class in sub class,
+*meaning we can change the code logic of the method in subclass but we cannot
+*change the parameter signature ( type, number and order of parameters passed has to be same ).
+*
+*2.
+*
+*In ABAP static methods / class methods cannot be redefined.
+*
+*3.
+*Runtime polymorphism is supported in ABAP.
+
+REPORT  zmethod_red_abap.
+
+*
+*----------------------------------------------------------------------*
+* Definition of class SUM_PARENT , parent class
+*----------------------------------------------------------------------*
+CLASS lc_sum_super DEFINITION.
+  PUBLIC SECTION.
+    DATA : v_sum TYPE integer.
+    METHODS: sum IMPORTING var1 TYPE integer
+                      var2 TYPE integer
+            EXPORTING var3 TYPE integer.
+
+    CLASS-METHODS : static_sum IMPORTING var1 TYPE integer
+                      var2 TYPE integer
+            EXPORTING var3 TYPE integer.
+ENDCLASS.                    "lc_sum_super Definition
+*
+*----------------------------------------------------------------------*
+* Implementation of class SUM
+*----------------------------------------------------------------------*
+CLASS lc_sum_super IMPLEMENTATION.
+  METHOD sum. "instace method sum
+    var3 = var1 + var2.
+  ENDMETHOD.                    "sum
+  METHOD static_sum. "static method
+    var3 = var1 + var2.
+  ENDMETHOD.                    "static_sum
+ENDCLASS.                    "lc_sum_super implementation
+*
+*----------------------------------------------------------------------*
+* Definition of SUM_SUBCLASS , sub class
+*----------------------------------------------------------------------*
+CLASS lc_sum_sub DEFINITION INHERITING FROM lc_sum_super.
+  PUBLIC SECTION.
+    METHODS: sum REDEFINITION ."can't change the signature of method
+    "can't redefine static methods
+*   CLASS-METHODS : static_sum REDEFINITION .
+ENDCLASS.                    "lc_sum_sub implementation
+*
+*----------------------------------------------------------------------*
+* Implementation of SUM_SUBCLASS
+*----------------------------------------------------------------------*
+CLASS lc_sum_sub IMPLEMENTATION.
+  METHOD sum.
+    var3 = var1 + var2 + 10.
+  ENDMETHOD.                    "sum
+ENDCLASS.                    "lc_sum_sub IMPLEMENTATION
+*
+START-OF-SELECTION.
+
+  DATA : p1 TYPE integer,
+         p2 TYPE integer,
+         v_sum TYPE integer.
+
+  DATA: obj_super TYPE REF TO lc_sum_super.
+  CREATE OBJECT obj_super.
+
+  p1 = 1. p2 = 2. v_sum = 0.
+  CALL METHOD : obj_super->sum "call to sum from super class
+                 EXPORTING var1 = p1
+                           var2 = p2
+                 IMPORTING var3 = v_sum.
+  obj_super->v_sum = v_sum.
+  WRITE /: 'Call to sum from lc_sum_super :',obj_super->v_sum. "3
+
+  p1 = 1. p2 = 2. v_sum = 0.
+  "call to static method static_sum
+  CALL METHOD : lc_sum_super=>static_sum
+                 EXPORTING var1 = p1
+                           var2 = p2
+                 IMPORTING var3 = v_sum.
+  WRITE /: 'Call to static_sum  : ',v_sum. "3
+
+  DATA: obj_sub TYPE REF TO lc_sum_sub. "call to sum in child class
+  CREATE OBJECT obj_sub.
+
+  p1 = 1. p2 = 2. v_sum = 0.
+  CALL METHOD : obj_sub->sum
+                 EXPORTING var1 = p1
+                           var2 = p2
+                 IMPORTING var3 = v_sum.
+  obj_sub->v_sum = v_sum.
+  WRITE /:'Call to sum from lc_sum_sub : ', obj_sub->v_sum. "13
+
+  " Runtime polymorphism, since obj_super stores obj_sub, the call
+  "obj_super->v_sum automatically calls sum from sub class
+  obj_super = obj_sub.
+  WRITE /: 'obj_super calls sum from sub class : ',obj_super->v_sum. "13

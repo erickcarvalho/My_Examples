@@ -1,0 +1,37 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_HEADER_ITEM
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_header_item.
+
+DATA: it_ekko TYPE TABLE OF ekko,
+      wa_ekko LIKE LINE OF it_ekko,
+      it_ekpo TYPE TABLE OF ekpo,
+      wa_ekpo LIKE LINE OF it_ekpo.
+
+SELECT-OPTIONS: so_ebeln FOR wa_ekko-ebeln.
+
+START-OF-SELECTION.
+
+  SELECT * FROM ekko INTO TABLE it_ekko
+    UP TO 200 ROWS
+    WHERE ebeln IN so_ebeln.
+
+  SELECT * FROM ekpo INTO TABLE it_ekpo
+    WHERE ebeln IN so_ebeln.
+
+  SORT: it_ekko BY ebeln, it_ekpo BY ebeln.
+
+  LOOP AT it_ekpo INTO wa_ekpo.
+    AT NEW ebeln.
+      READ TABLE it_ekko INTO wa_ekko
+          WITH KEY ebeln = wa_ekpo-ebeln
+            BINARY SEARCH.
+      WRITE: / 'HEADER - PO: ', wa_ekko-ebeln.
+    ENDAT.
+    WRITE: /10 'ITEM: ', wa_ekpo-ebelp.
+  ENDLOOP.

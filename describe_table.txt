@@ -1,0 +1,31 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_DESCRIBE_TABLE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_describe_table.
+
+DATA: t_scarr TYPE TABLE OF scarr.
+
+DATA: v_tipo TYPE c ,
+      v_linhas TYPE i ,
+v_tamanho_inicial TYPE i .
+
+SELECT *
+FROM scarr
+INTO TABLE t_scarr.
+
+DESCRIBE TABLE t_scarr.
+DESCRIBE TABLE t_scarr KIND v_tipo.
+DESCRIBE TABLE t_scarr LINES v_linhas.
+DESCRIBE TABLE t_scarr OCCURS v_tamanho_inicial.
+
+WRITE:
+/'sy-tfill'          , sy-tfill         , "quantidade de linhas
+/'sy-tleng'          , sy-tleng         , "tamanho em bytes de uma linha
+/'v_tipo'            , v_tipo           , "tipo da tabela: "T" standard table, "S" sorted table e "H" hashed tables
+/'v_linhas'          , v_linhas         , "quantidade de linhas
+/'v_tamanho_inicial' , v_tamanho_inicial. "tamanho inicial da tabela (ou occurs)

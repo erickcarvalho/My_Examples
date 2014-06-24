@@ -1,0 +1,90 @@
+* gravar layout when the user has chosen some specific layout
+
+REPORT  z_salv_06.
+
+* DEFINITION
+CLASS lcl_report DEFINITION.
+*
+  PUBLIC SECTION.
+*   Final output table
+    TYPES: BEGIN OF ty_vbak,
+              vbeln TYPE vbak-vbeln,
+              erdat TYPE erdat,
+              auart TYPE auart,
+              kunnr TYPE kunnr,
+           END   OF ty_vbak.
+*
+    DATA: t_vbak TYPE STANDARD TABLE OF ty_vbak.
+    DATA: o_alv TYPE REF TO cl_salv_table. "* ALV reference
+*
+    METHODS:
+      get_data, "data selection*
+      generate_output. " Generating output
+
+  PRIVATE SECTION.
+    METHODS:
+      set_display_setting
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+
+ENDCLASS.                    "lcl_report DEFINITION
+
+* IMPLEMENTATION
+CLASS lcl_report IMPLEMENTATION.
+* GETTING DATA
+  METHOD get_data.
+*   data selection
+    SELECT vbeln erdat auart kunnr
+           INTO  TABLE t_vbak
+           FROM  vbak
+           UP TO 20 ROWS.
+*
+  ENDMETHOD.                    "get_data
+
+*  GENERATING THE OUTPUT
+  METHOD generate_output.
+
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = t_vbak ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+
+    CALL METHOD set_display_setting
+      CHANGING
+        co_alv = o_alv.
+
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+
+  METHOD set_display_setting.
+*
+    DATA: lo_display TYPE REF TO cl_salv_display_settings.
+*
+*   get display object
+    lo_display = o_alv->get_display_settings( ).
+*
+*   set ZEBRA pattern
+    lo_display->set_striped_pattern( 'X' ).
+*
+*   Title to ALV
+    lo_display->set_list_header( 'ALV Test for Display Settings' ).
+*
+  ENDMETHOD.                    "SET_DISPLAY_SETTING
+
+ENDCLASS .                    "lcl_report IMPLEMENTATION
+
+
+START-OF-SELECTION.
+  DATA: lo_report TYPE REF TO lcl_report.
+*
+  CREATE OBJECT lo_report.
+*
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).

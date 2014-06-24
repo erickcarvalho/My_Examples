@@ -1,0 +1,35 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_RADIOBUTTON_01
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_radiobutton_01.
+
+*&---------------------------------------------------------------------*
+*& This code snippet will show how to use the CASE .. ENDCASE statement
+*&   to check which radiobutton has been selected
+*&---------------------------------------------------------------------*
+* Selection screen with 3 radiobuttons.
+SELECTION-SCREEN: BEGIN OF BLOCK blk1 WITH FRAME TITLE aaa.
+PARAMETERS:       p_r1  RADIOBUTTON GROUP rd1,
+                  p_r2  RADIOBUTTON GROUP rd1,
+                  p_r3  RADIOBUTTON GROUP rd1.
+SELECTION-SCREEN: END   OF BLOCK blk1.
+*
+INITIALIZATION.
+* Name of the title - line 15
+  aaa = 'Select your option'.
+*
+START-OF-SELECTION.
+* Case statements to check which radiobutton was selected.
+  CASE 'X'.
+    WHEN p_r1.
+      WRITE: / 'P_R1 has been selected..!'.
+    WHEN p_r2.
+      WRITE: / 'P_R2 has been selected..!'.
+    WHEN p_r3.
+      WRITE: / 'P_R3 has been selected..!'.
+  ENDCASE.

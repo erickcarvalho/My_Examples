@@ -1,0 +1,162 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_SALV_12
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_salv_12.
+
+*
+*----------------------------------------------------------------------*
+*       Code to Apply Filters to SALV Table Display
+*----------------------------------------------------------------------*
+*       CLASS lcl_report DEFINITION
+*----------------------------------------------------------------------*
+CLASS lcl_report DEFINITION.
+*
+  PUBLIC SECTION.
+*
+*   Final output table
+    TYPES: BEGIN OF ty_vbak,
+           vbeln     TYPE vbak-vbeln,
+           erdat     TYPE erdat,
+           auart     TYPE auart,
+           kunnr     TYPE kunnr,
+           netwr     TYPE netwr,
+           END   OF ty_vbak.
+    TYPES: ty_t_vbak TYPE STANDARD TABLE OF ty_vbak.
+*
+    DATA: t_vbak TYPE STANDARD TABLE OF ty_vbak.
+*
+*   ALV reference
+    DATA: o_alv TYPE REF TO cl_salv_table.
+*
+    METHODS:
+*     data selection
+      get_data,
+*
+*     Generating output
+      generate_output.
+*
+  PRIVATE SECTION.
+    METHODS:
+      set_pf_status
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+*
+    METHODS:
+      set_filters
+        CHANGING
+          co_alv TYPE REF TO cl_salv_table.
+*
+*$*$*.....CODE_ADD_1 - End....................................1..*$*$*
+*
+ENDCLASS.                    "lcl_report DEFINITION
+*
+*
+START-OF-SELECTION.
+  DATA: lo_report TYPE REF TO lcl_report.
+*
+  CREATE OBJECT lo_report.
+*
+  lo_report->get_data( ).
+*
+  lo_report->generate_output( ).
+*
+*----------------------------------------------------------------------*
+*       CLASS lcl_report IMPLEMENTATION
+*----------------------------------------------------------------------*
+CLASS lcl_report IMPLEMENTATION.
+*
+  METHOD get_data.
+*   data selection
+    SELECT vbeln erdat auart kunnr netwr
+           INTO  CORRESPONDING FIELDS OF TABLE t_vbak
+           FROM  vbak
+           WHERE erdat GE '20000101'.
+*
+  ENDMETHOD.                    "get_data
+*
+*.......................................................................
+  METHOD generate_output.
+* New ALV instance
+*   We are calling the static Factory method which will give back
+*   the ALV object reference.
+*
+* exception class
+    DATA: lx_msg TYPE REF TO cx_salv_msg.
+    TRY.
+        cl_salv_table=>factory(
+          IMPORTING
+            r_salv_table = o_alv
+          CHANGING
+            t_table      = t_vbak ).
+      CATCH cx_salv_msg INTO lx_msg.
+    ENDTRY.
+*
+*$*$*.....CODE_ADD_2 - Begin..................................2..*$*$*
+*
+*    In this area we will call the methods which will set the
+*      different properties to the ALV
+*
+*   Set default PF status
+    CALL METHOD set_pf_status
+      CHANGING
+        co_alv = o_alv.
+*
+*   Set Filters
+    CALL METHOD set_filters
+      CHANGING
+        co_alv = o_alv.
+*$*$*.....CODE_ADD_2 - End....................................2..*$*$*
+*
+*
+* Displaying the ALV
+*   Here we will call the DISPLAY method to get the output on the screen
+    o_alv->display( ).
+*
+  ENDMETHOD.                    "generate_output
+*
+*$*$*.....CODE_ADD_3 - Begin..................................3..*$*$*
+*
+*    In this area we will implement the methods which are defined in
+*      the class definition
+*
+*
+  METHOD set_pf_status.
+*
+    DATA: lo_functions TYPE REF TO cl_salv_functions_list.
+*
+    lo_functions = co_alv->get_functions( ).
+    lo_functions->set_default( abap_true ).
+*
+  ENDMETHOD.                    "set_pf_status
+*
+  METHOD set_filters.
+*
+    DATA: lo_filters TYPE REF TO cl_salv_filters.
+*
+    lo_filters = co_alv->get_filters( ).
+*
+*   Set the filter for the column ERDAT
+*     the filter criteria works exactly same as any
+*     RANGE or SELECT-OPTIONS works.
+    TRY.
+        CALL METHOD lo_filters->add_filter
+          EXPORTING
+            columnname = 'ERDAT'
+            sign       = 'I'
+            option     = 'EQ'
+            low        = '20001214'
+*           high       =
+            .
+      CATCH cx_salv_not_found .                         "#EC NO_HANDLER
+      CATCH cx_salv_data_error .                        "#EC NO_HANDLER
+      CATCH cx_salv_existing .                          "#EC NO_HANDLER
+    ENDTRY.
+*
+  ENDMETHOD.                    "set_filters
+*
+ENDCLASS.                    "lcl_report IMPLEMENTATION
