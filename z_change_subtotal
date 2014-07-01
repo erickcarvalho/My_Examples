@@ -1,0 +1,251 @@
+REPORT  zalv_subtot_change.
+*
+*&---------------------------------------------------------------------*
+*& Report  ZALV_SUBTOT_CHANGE.
+*&
+*&---------------------------------------------------------------------*
+*& Program shows how to change the Subtotal of the classical ALV
+*& check subroutine TOP_OF_PAGE
+*&
+*&---------------------------------------------------------------------*
+*
+TYPE-POOLS: slis.
+*
+TYPES: BEGIN OF ty_bkpf,
+       belnr TYPE bkpf-belnr,
+       buzei TYPE bseg-buzei,
+       dmbtr TYPE bseg-dmbtr,
+       per   TYPE bseg-dmbtr,
+       per1  TYPE char10,
+       mode  TYPE bapi_change_mode,
+       END   OF ty_bkpf.
+*
+DATA: it_bkpf TYPE STANDARD TABLE OF ty_bkpf,
+      it_bkpf1 TYPE STANDARD TABLE OF ty_bkpf,
+      wa_bkpf TYPE ty_bkpf.
+*
+DATA: t_fieldcat   TYPE slis_t_fieldcat_alv.
+DATA:  wa_fieldcat   TYPE slis_fieldcat_alv.
+*
+START-OF-SELECTION.
+*
+  SELECT belnr buzei dmbtr
+         INTO TABLE it_bkpf
+         FROM  bseg
+         UP TO 20 ROWS.
+*
+  LOOP AT it_bkpf INTO wa_bkpf.
+    wa_bkpf-per = 0.
+    wa_bkpf-mode = 'O'.
+    MODIFY it_bkpf FROM wa_bkpf.
+    CLEAR  wa_bkpf.
+  ENDLOOP.
+*
+  PERFORM create_field_catalog.
+  PERFORM create_alv_output.
+*
+*&---------------------------------------------------------------------*
+*&      Form  create_field_catalog
+*&---------------------------------------------------------------------*
+FORM create_field_catalog .
+*
+  PERFORM add_field_catalog USING :
+    '01' 'BELNR'     'Doc'         '10'  '',
+    '02' 'BUZEI'     'Line'        '3'  '',
+    '03' 'DMBTR'     'Amount'      '17'  'X',
+    '04' 'PER'       'Percentage'      '17'  'X',
+    '05' 'PER1'      'Percentage'     '17'  '',
+    '06' 'MODE'      'Mode'        '4'   ''.
+*
+ENDFORM.                    " create_field_catalog
+*
+*&---------------------------------------------------------------------*
+*&      Form  add_field_catalog
+*&---------------------------------------------------------------------*
+*       Adds field details into field catalog
+*----------------------------------------------------------------------*
+FORM add_field_catalog  USING    p_colpos
+                                 p_fldname
+                                 p_fldtext
+                                 p_outlen
+                                 p_sum..
+*
+  wa_fieldcat-row_pos       = '1'.
+  wa_fieldcat-col_pos       = p_colpos.
+  wa_fieldcat-fieldname     = p_fldname.
+  wa_fieldcat-tabname       = 'IT_BKPF'.
+  wa_fieldcat-reptext_ddic  = p_fldtext.
+  wa_fieldcat-outputlen     = p_outlen.
+  wa_fieldcat-no_zero       = 'X'.  " <<
+  wa_fieldcat-do_sum        = p_sum.
+  IF wa_fieldcat-fieldname = 'MODE'.
+    wa_fieldcat-rollname      = 'BAPI_CHANGE_MODE'.
+  ENDIF.
+  APPEND  wa_fieldcat TO t_fieldcat.
+  CLEAR : wa_fieldcat.
+*
+ENDFORM.                    " add_field_catalog
+*&---------------------------------------------------------------------*
+*&      Form  create_alv_output
+*&---------------------------------------------------------------------*
+*       Generate ALV Grid output
+*----------------------------------------------------------------------*
+FORM create_alv_output .
+  DATA: l_repid LIKE sy-repid,
+        l_layout TYPE slis_layout_alv,
+        l_print  TYPE  slis_print_alv.
+*
+  DATA: it_sort TYPE slis_t_sortinfo_alv,
+        ls_sort TYPE slis_sortinfo_alv.
+*
+  DATA: it_filter TYPE slis_t_filter_alv,
+        ls_filter TYPE slis_filter_alv.
+*
+  DATA: it_event_exit TYPE slis_t_event_exit,
+        ls_event_exit TYPE slis_event_exit.
+*
+  DATA: t_event      TYPE slis_t_event,
+        wa_event      TYPE slis_alv_event.
+*
+*
+  l_repid = sy-repid.
+*
+  l_layout-no_totalline = 'X'.
+  l_layout-colwidth_optimize = ' '.
+*
+  ls_sort-spos = '1'.
+  ls_sort-fieldname = 'BUZEI'.
+  ls_sort-tabname = 'IT_BKPF'.
+  ls_sort-up = 'X'.
+  ls_sort-subtot = 'X'.
+  APPEND ls_sort TO it_sort.
+*
+*
+  ls_event_exit-ucomm = '&ILT'.
+  ls_event_exit-after = 'X'.
+  APPEND ls_event_exit TO it_event_exit.
+*
+*
+  CLEAR wa_event.
+  wa_event-name = 'USER_COMMAND'.
+  wa_event-form = 'USER_COMMAND'.
+  APPEND wa_event TO t_event.
+*
+  CLEAR wa_event.
+  wa_event-name = 'TOP_OF_PAGE'.
+  wa_event-form = 'TOP_OF_PAGE'.
+  APPEND wa_event TO t_event.
+*
+  CLEAR wa_event.
+  wa_event-name = 'TOP_OF_LIST'.
+  wa_event-form = 'TOP_OF_LIST'.
+  APPEND wa_event TO t_event.
+*
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program     = l_repid
+      i_callback_top_of_page = 'TOP_OF_PAGE'
+      is_layout              = l_layout
+      is_print               = l_print
+      it_sort                = it_sort
+      it_filter              = it_filter
+      it_fieldcat            = t_fieldcat[]
+      it_events              = t_event
+    TABLES
+      t_outtab               = it_bkpf
+    EXCEPTIONS
+      program_error          = 1
+      OTHERS                 = 2.
+  IF sy-subrc <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+*
+ENDFORM.                    " create_alv_output
+*
+*&---------------------------------------------------------------------*
+*&      Form  TOP_OF_PAGE
+*&---------------------------------------------------------------------*
+FORM top_of_page.
+*
+  DATA: lo_grid TYPE REF TO cl_gui_alv_grid.
+*
+* get the global reference
+  CALL FUNCTION 'GET_GLOBALS_FROM_SLVC_FULLSCR'
+    IMPORTING
+      e_grid = lo_grid.
+*
+* get the subtotal
+  DATA: it_01 TYPE REF TO data.
+*
+  CALL METHOD lo_grid->get_subtotals
+    IMPORTING
+      ep_collect01 = it_01.
+*
+* change the data
+  FIELD-SYMBOLS: <ft_tab> TYPE ANY TABLE,
+                 <fs_tab> TYPE ANY,
+                 <ff_field> TYPE ANY.
+  ASSIGN it_01->* TO <ft_tab>.
+*
+  LOOP AT <ft_tab> ASSIGNING <fs_tab>.
+    ASSIGN COMPONENT 'PER' OF STRUCTURE <fs_tab> TO <ff_field>.
+    <ff_field> = '100'.
+  ENDLOOP.
+*
+* Refresh the table display
+  CALL METHOD lo_grid->refresh_table_display
+    EXPORTING
+      i_soft_refresh = 'X'.
+*
+ENDFORM.                    " top_of_page
+*
+*
+*&---------------------------------------------------------------------*
+*&      Form  TOP_OF_LIST
+*&---------------------------------------------------------------------*
+FORM top_of_list.
+*
+  DATA: lo_grid TYPE REF TO cl_gui_alv_grid.
+*
+* FOR Print out:
+  CHECK sy-ucomm = 'PRIN'            " Print
+  OR    sy-ucomm = '&RNT_PREV'.      " Print Preview
+*
+* get the global reference
+  CALL FUNCTION 'GET_GLOBALS_FROM_SLVC_FULLSCR'
+    IMPORTING
+      e_grid = lo_grid.
+*
+* get the subtotal
+  DATA: it_01 TYPE REF TO data.
+*
+  CALL METHOD lo_grid->get_subtotals
+    IMPORTING
+      ep_collect01 = it_01.
+*
+* change the data
+  FIELD-SYMBOLS: <ft_tab> TYPE ANY TABLE,
+                 <fs_tab> TYPE ANY,
+                 <ff_field> TYPE ANY.
+  ASSIGN it_01->* TO <ft_tab>.
+*
+  LOOP AT <ft_tab> ASSIGNING <fs_tab>.
+    ASSIGN COMPONENT 'PER' OF STRUCTURE <fs_tab> TO <ff_field>.
+    <ff_field> = '100'.
+  ENDLOOP.
+*
+* Set the subtotal for the Print / Print preview
+  FIELD-SYMBOLS: <fs_tab1> TYPE ANY TABLE.
+  DATA: l_tab_name TYPE string.
+*
+  l_tab_name = '(SAPLKKBL)IT_COLLECT01[]'.
+*
+  ASSIGN (l_tab_name) TO <fs_tab1>.
+  IF <fs_tab1> IS ASSIGNED.
+*
+    <fs_tab1> = <ft_tab>.
+*
+  ENDIF.
+*
+ENDFORM.                    " top_of_list
