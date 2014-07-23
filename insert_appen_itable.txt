@@ -1,0 +1,25 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_INSERT_APPEND
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_insert_append.
+
+DATA: it_01 TYPE TABLE OF zerick .
+DATA: it_02 TYPE TABLE OF zerick .
+
+INITIALIZATION .
+
+START-OF-SELECTION .
+
+  SELECT *
+    FROM zerick
+    INTO TABLE it_01 .
+
+  APPEND LINES OF it_01 TO it_02 .
+  INSERT LINES OF it_01 INTO TABLE it_02 .
+
+  BREAK-POINT .

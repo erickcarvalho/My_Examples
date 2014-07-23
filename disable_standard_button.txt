@@ -1,0 +1,22 @@
+PARAMETERS: p_test AS CHECKBOX.
+ 
+INITIALIZATION.
+ 
+* Exclude Buttons from the PF-KEY
+  DATA: t_rsexfcode        TYPE TABLE OF rsexfcode,
+        ls_rsexfcode       LIKE LINE OF t_rsexfcode.
+ 
+  ls_rsexfcode-fcode = 'PRIN'.          "Execute and Print
+  APPEND ls_rsexfcode TO t_rsexfcode.
+ 
+  ls_rsexfcode-fcode = 'SJOB'.          "Execute in Background
+  APPEND ls_rsexfcode TO t_rsexfcode.
+ 
+  ls_rsexfcode-fcode = 'VDEL'.          "Variant Delete
+  APPEND ls_rsexfcode TO t_rsexfcode.
+ 
+  CALL FUNCTION 'RS_SET_SELSCREEN_STATUS'
+    EXPORTING
+      p_status  = sy-pfkey
+    TABLES
+      p_exclude = t_rsexfcode.
