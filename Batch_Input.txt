@@ -1,0 +1,81 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_BATCH_INPUT
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  z_batch_input.
+
+DATA wa_bdcdata TYPE bdcdata.
+DATA it_bdcdata TYPE TABLE OF bdcdata.
+DATA opt TYPE ctu_params.
+
+START-OF-SELECTION .
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-program  = 'SAPMV45A'.
+  wa_bdcdata-dynpro   = '0101'.
+  wa_bdcdata-dynbegin = 'X'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-fnam  = 'VBAK-AUART'.
+  wa_bdcdata-fval   = 'AE'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+*  CLEAR wa_bdcdata.
+*  wa_bdcdata-fnam  = 'VBAK-VKORG'.
+*  wa_bdcdata-fval   = 'OVO2'.
+*  APPEND wa_bdcdata TO it_bdcdata.
+*
+*  CLEAR wa_bdcdata.
+*  wa_bdcdata-fnam  = 'VBAK-VTWEG'.
+*  wa_bdcdata-fval   = 'C1'.
+*  APPEND wa_bdcdata TO it_bdcdata.
+*
+*  CLEAR wa_bdcdata.
+*  wa_bdcdata-fnam  = 'VBAK-SPART'.
+*  wa_bdcdata-fval   = 'DD'.
+*  APPEND wa_bdcdata TO it_bdcdata.
+*
+*  CLEAR wa_bdcdata.
+*  wa_bdcdata-fnam  = 'VBAK-SPART'.
+*  wa_bdcdata-fval   = 'DD'.
+*  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-fnam  = 'BDC_OKCODE'.
+*  wa_bdcdata-fval   = 'WB_DISPLAY'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-program  = 'SAPMV45A'.
+  wa_bdcdata-dynpro   = '4001'.
+  wa_bdcdata-dynbegin = 'X'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-fnam  = 'KUAGV-KUNNR'.
+  wa_bdcdata-fval   = '400048'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+*  CLEAR wa_bdcdata.
+*  wa_bdcdata-fnam  = 'BDC_OKCODE'.
+**  wa_bdcdata-fval   = 'WB_DISPLAY'.
+*  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-fnam  = 'VBAP-MATNR'.
+  wa_bdcdata-fval   = 'dfsdsdfds'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+  CLEAR wa_bdcdata.
+  wa_bdcdata-fnam  = 'VBAP-ZMENG'.
+  wa_bdcdata-fval   = '1'.
+  APPEND wa_bdcdata TO it_bdcdata.
+
+  opt-dismode = 'E'.
+
+  CALL TRANSACTION 'VA01' USING it_bdcdata OPTIONS FROM opt.

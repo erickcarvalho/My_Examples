@@ -31,7 +31,7 @@ ENDCLASS.                    "lc_sum_super Definition
 * Implementation of class SUM
 *----------------------------------------------------------------------*
 CLASS lc_sum_super IMPLEMENTATION.
-  METHOD sum. "instace method sum
+  METHOD sum. "instance method sum
     var3 = var1 + var2.
   ENDMETHOD.                    "sum
   METHOD static_sum. "static method
@@ -75,7 +75,10 @@ START-OF-SELECTION.
   obj_super->v_sum = v_sum.
   WRITE /: 'Call to sum from lc_sum_super :',obj_super->v_sum. "3
 
-  p1 = 1. p2 = 2. v_sum = 0.
+  p1 = 1.
+  p2 = 2. 
+  v_sum = 0.
+  
   "call to static method static_sum
   CALL METHOD : lc_sum_super=>static_sum
                  EXPORTING var1 = p1

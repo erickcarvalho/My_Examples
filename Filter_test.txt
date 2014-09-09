@@ -1,0 +1,105 @@
+  DATA: r_subrc LIKE sy-subrc .
+
+  DATA:
+        lt_rowmark TYPE kkblo_t_rowmark,
+        lt_colmark TYPE kkblo_t_colmark,
+        ls_colmark TYPE kkblo_colmark,
+        ls_selfield TYPE slis_selfield.
+
+  DATA: l_tabix LIKE sy-tabix.
+  DATA: l_tabix2 LIKE sy-tabix.
+  DATA: l_tabix3 LIKE sy-tabix.
+  DATA: ls_act_fieldcat TYPE kkblo_fieldcat.
+  DATA: ls_fieldcat TYPE kkblo_fieldcat.
+  DATA: lt_filter_fieldcat TYPE kkblo_t_fieldcat.
+  DATA: l_id LIKE gt_stack-list_id.
+  DATA: l_id_sav LIKE gt_stack-list_id.
+  DATA: l_tabno(2) TYPE n.
+  DATA: l_itab TYPE kkblo_tabname.
+  DATA: l_itab_slave TYPE kkblo_tabname.
+  DATA: lt_filter TYPE kkblo_t_filter.
+
+  FIELD-SYMBOLS: <outtab> TYPE table.
+  FIELD-SYMBOLS: <outtab_slave> TYPE table.
+
+  CALL FUNCTION 'K_KKB_MARK_INFO_GET'
+    IMPORTING
+      et_colmark  = lt_colmark[]
+      et_rowmark  = lt_rowmark[]
+      es_selfield = ls_selfield.
+
+  LOOP AT lt_colmark INTO ls_colmark.
+    l_tabix = sy-tabix.
+*   Aus colmark-Information und
+
+    PERFORM fieldcat_field_get TABLES gt_stack
+                               USING  ls_colmark
+                                      ls_act_fieldcat
+                                      l_id.
+
+    IF l_tabix = 1.
+      l_id_sav = l_id.
+      READ TABLE gt_stack WITH KEY list_id = l_id.
+      lt_filter_fieldcat[] = gt_stack-fieldcat[].
+      l_tabix2 = sy-tabix.
+    ENDIF.
+
+    IF l_id NE l_id_sav.
+      r_subrc = 4.
+      MESSAGE e044(0k).
+    ENDIF.
+
+    READ TABLE lt_filter_fieldcat INTO ls_fieldcat WITH KEY
+                                 tabname = ls_act_fieldcat-tabname
+                                 fieldname = ls_act_fieldcat-fieldname.
+    IF sy-subrc = 0.
+      l_tabix3 = sy-tabix.
+      ls_fieldcat-mark = 'X'.
+      MODIFY lt_filter_fieldcat FROM ls_fieldcat INDEX l_tabix3.
+    ENDIF.
+  ENDLOOP.
+  IF sy-subrc NE 0.
+    MESSAGE e005(0k).
+  ENDIF.
+  l_tabno = l_id.
+
+  CONCATENATE '<header_table' l_tabno '>' INTO l_itab.
+  ASSIGN (l_itab) TO <outtab>.
+  IF NOT gt_stack-item_tabname IS INITIAL.
+    CONCATENATE '<item_table' l_tabno '>' INTO l_itab_slave.
+    ASSIGN (l_itab_slave) TO <outtab_slave>.
+  ENDIF.
+  IF gt_stack-list_type = 'H'.
+    CALL FUNCTION 'K_KKB_OUTTAB_FILTER_CRITERIA_K'
+      EXPORTING
+        it_fieldcat    = lt_filter_fieldcat[]
+        is_selfield    = ls_selfield
+        is_layout      = gt_stack-layout
+        i_tabname      = gt_stack-header_tabname
+      TABLES
+        t_outtab       = <outtab>
+        t_outtab_slave = <outtab_slave>
+      CHANGING
+        ct_filter      = lt_filter[]
+      EXCEPTIONS
+        OTHERS         = 1.
+  ELSE.
+    CALL FUNCTION 'K_KKB_OUTTAB_FILTER_CRITERIA_K'
+         EXPORTING
+              it_fieldcat    = lt_filter_fieldcat[]
+              is_selfield    = ls_selfield
+              is_layout      = gt_stack-layout
+              i_tabname      = gt_stack-header_tabname
+         TABLES
+              t_outtab       = <outtab>
+*              T_OUTTAB_SLAVE = <OUTTAB_SLAVE>
+         CHANGING
+              ct_filter      = lt_filter[]
+         EXCEPTIONS
+              OTHERS         = 1.
+  ENDIF.
+  r_subrc = sy-subrc.
+  IF sy-subrc = 0.
+    gt_stack-filter[] = lt_filter[].
+    MODIFY gt_stack INDEX l_tabix2.
+  ENDIF.

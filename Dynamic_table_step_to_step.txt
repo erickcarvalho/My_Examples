@@ -1,0 +1,202 @@
+*&---------------------------------------------------------------------*
+*& Report  ZDYNAMIC_TABLE
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT zdynamic_table.
+
+TYPES : BEGIN OF gfirst_typ,
+vend(6) TYPE c,
+month(5) TYPE c,
+amt TYPE i.
+TYPES : END OF gfirst_typ.
+
+DATA :  it_zdemo  TYPE TABLE  OF gfirst_typ.
+DATA :  wa_zdemo  LIKE LINE   OF it_zdemo,
+        wa_zdemo1 LIKE LINE   OF it_zdemo.
+
+DATA : gv_pos TYPE i.
+DATA : fname TYPE string.
+
+* Dynamic Table Declarations
+
+DATA : gt_dyn_table   TYPE REF TO data,
+gw_line               TYPE REF TO data,
+gw_line1              TYPE REF TO data,
+gw_dyn_fcat           TYPE lvc_s_fcat,
+gt_dyn_fcat           TYPE lvc_t_fcat.
+
+* Field Symbols Declarations
+
+FIELD-SYMBOLS: <gfs_line>,
+               <gfs_line1>,
+               <gfs_dyn_table> TYPE STANDARD TABLE,
+               <fs1>.
+
+* Populate the initial input table. Usually this input table contents will be populated at run time, which raises the requirement of dynamic table. The table contents are filled here for illustration purpose.
+
+wa_zdemo-vend = 'V100'.
+wa_zdemo-month = 'JAN'.
+wa_zdemo-amt = 100.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V100'.
+wa_zdemo-month = 'FEB'.
+wa_zdemo-amt = 200.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V200'.
+wa_zdemo-month = 'FEB'.
+wa_zdemo-amt = 200.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V300'.
+wa_zdemo-month = 'FEB'.
+wa_zdemo-amt = 150.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V200'.
+wa_zdemo-month = 'MAR'.
+wa_zdemo-amt = 250.
+APPEND wa_zdemo TO it_zdemo.
+
+
+wa_zdemo-vend = 'V300'.
+wa_zdemo-month = 'MAR'.
+wa_zdemo-amt = 300.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V100'.
+wa_zdemo-month = 'APR'.
+wa_zdemo-amt = 200.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V100'.
+wa_zdemo-month = 'MAY'.
+wa_zdemo-amt = 100.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V200'.
+wa_zdemo-month = 'MAY'.
+wa_zdemo-amt = 50.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V300'.
+wa_zdemo-month = 'MAY'.
+wa_zdemo-amt = 125.
+APPEND wa_zdemo TO it_zdemo.
+
+wa_zdemo-vend = 'V400'.
+wa_zdemo-month = 'MAY'.
+wa_zdemo-amt = 475.
+APPEND wa_zdemo TO it_zdemo.
+
+WRITE : / 'Initial Internal Table'.
+WRITE :/.
+WRITE :/(6) 'Vendor'.
+WRITE : (13) 'Month' .
+WRITE : (3) 'Amt' .
+LOOP AT it_zdemo INTO wa_zdemo.
+  WRITE :/ wa_zdemo-vend, wa_zdemo-month, wa_zdemo-amt.
+ENDLOOP.
+
+** This would create structure Vendor Jan13 Feb13 Mar13 etc ....
+
+gv_pos = gv_pos + 1.
+gw_dyn_fcat-fieldname = 'VEND'.
+gw_dyn_fcat-outputlen = 5.
+gw_dyn_fcat-tabname   = 'IT_DEMO'.
+gw_dyn_fcat-coltext   = 'VENDOR'.
+gw_dyn_fcat-col_pos   = gv_pos.
+gw_dyn_fcat-key = 'X'.
+gw_dyn_fcat-key_sel = 'X'.
+APPEND gw_dyn_fcat TO gt_dyn_fcat.
+CLEAR gw_dyn_fcat.
+
+* Loop through the internal table creating a column for every distinct month in the internal table
+LOOP AT it_zdemo INTO wa_zdemo.
+  gv_pos = gv_pos + 1.
+  CONCATENATE wa_zdemo-month '13' INTO fname.
+  READ TABLE gt_dyn_fcat INTO gw_dyn_fcat WITH KEY fieldname = wa_zdemo-month.
+  IF sy-subrc NE 0.
+    gw_dyn_fcat-fieldname = wa_zdemo-month.
+    gw_dyn_fcat-tabname   = 'IT_DEMO'.
+    gw_dyn_fcat-coltext   = fname.
+    gw_dyn_fcat-outputlen = 10.
+    gw_dyn_fcat-col_pos   = gv_pos.
+    APPEND gw_dyn_fcat TO gt_dyn_fcat.
+  ENDIF.
+  CLEAR gw_dyn_fcat.
+ENDLOOP.
+
+** Create a dynamic internal table with this structure.
+
+CALL METHOD cl_alv_table_create=>create_dynamic_table
+  EXPORTING
+    i_style_table             = 'X'
+    it_fieldcatalog           = gt_dyn_fcat
+  IMPORTING
+    ep_table                  = gt_dyn_table
+  EXCEPTIONS
+    generate_subpool_dir_full = 1
+    OTHERS                    = 2.
+
+IF sy-subrc EQ 0.
+* Assign the new table to field symbol
+  ASSIGN gt_dyn_table->* TO <gfs_dyn_table>.
+* Create dynamic work area for the dynamic table
+  CREATE DATA gw_line LIKE LINE OF <gfs_dyn_table>.
+  CREATE DATA gw_line1 LIKE LINE OF <gfs_dyn_table>.
+  ASSIGN gw_line->* TO <gfs_line>.
+  ASSIGN gw_line1->* TO <gfs_line1>.
+ENDIF.
+
+
+* Populate the dynamic table
+
+LOOP AT it_zdemo INTO wa_zdemo.
+
+* Avoid duplicate entries for key field PART.
+  READ TABLE <gfs_dyn_table> INTO <gfs_line1> WITH KEY ('VEND') = wa_zdemo-vend.
+  IF sy-subrc = 0.
+    CONTINUE.
+  ENDIF.
+
+  ASSIGN COMPONENT 'VEND' OF STRUCTURE <gfs_line> TO <fs1>.
+  <fs1> = wa_zdemo-vend.
+  UNASSIGN <fs1>.
+
+  LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
+    IF gw_dyn_fcat-fieldname = 'VEND'.
+      CONTINUE.
+    ENDIF.
+    READ TABLE it_zdemo WITH KEY vend = wa_zdemo-vend month = gw_dyn_fcat-fieldname INTO wa_zdemo1.
+    IF sy-subrc = 0.
+      ASSIGN COMPONENT gw_dyn_fcat-fieldname OF STRUCTURE <gfs_line> TO <fs1>.
+      <fs1> = wa_zdemo1-amt.
+      UNASSIGN <fs1>.
+    ENDIF.
+    CLEAR : wa_zdemo1.
+  ENDLOOP.
+  APPEND <gfs_line> TO <gfs_dyn_table>.
+  CLEAR: <gfs_line>.
+  CLEAR: wa_zdemo, wa_zdemo1.
+ENDLOOP.
+
+WRITE :/.
+WRITE : / 'Dynamic Internal Table'.
+WRITE :/.
+LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
+  WRITE (10) : gw_dyn_fcat-coltext.
+ENDLOOP.
+WRITE :/.
+LOOP AT <gfs_dyn_table> INTO <gfs_line>.
+  LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
+    ASSIGN COMPONENT gw_dyn_fcat-fieldname OF STRUCTURE <gfs_line> TO <fs1>.
+    WRITE : <fs1>.
+  ENDLOOP.
+  WRITE :/      .
+ENDLOOP.

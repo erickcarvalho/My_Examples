@@ -1,0 +1,287 @@
+*&---------------------------------------------------------------------*
+*& Report  ZNP_DP_WITH_OBSERVER
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  znp_dp_with_observer.
+
+*&---------------------------------------------------------------------*
+*& Purpose: Demo With Observer. Refresh is achieved via Event
+*& Author : Erick Carvalho
+*&---------------------------------------------------------------------*
+
+DATA: v_ok_code TYPE sy-ucomm.
+
+*=== Class Definitions
+CLASS lcl_t100_alv DEFINITION.
+  PUBLIC SECTION.
+    METHODS: generate_alv IMPORTING io_cont TYPE REF TO cl_gui_container.
+    EVENTS: refresh_details EXPORTING value(wa_t100) TYPE t100.
+  PRIVATE SECTION.
+    DATA: o_salv TYPE REF TO cl_salv_table.
+    DATA: t_t100 TYPE STANDARD TABLE OF t100.
+    METHODS: handle_double_click
+              FOR EVENT double_click OF cl_salv_events_table
+              IMPORTING row column.
+ENDCLASS.                    "lcl_t100_alv DEFINITION
+*
+CLASS lcl_sub_alv DEFINITION ABSTRACT.
+  PUBLIC SECTION.
+    METHODS: generate_alv ABSTRACT IMPORTING io_cont TYPE REF TO cl_gui_container.
+  PROTECTED SECTION.
+    METHODS: on_refresh_details ABSTRACT
+      FOR EVENT refresh_details OF lcl_t100_alv
+      IMPORTING wa_t100.
+    DATA: o_salv TYPE REF TO cl_salv_table.
+    TYPES:
+      BEGIN OF ty_info,
+        key TYPE char30,
+        value TYPE char50,
+      END   OF ty_info.
+    DATA: t_info TYPE STANDARD TABLE OF ty_info.
+ENDCLASS.                    "lcl_sub_alv DEFINITION
+*
+CLASS lcl_t100_details DEFINITION INHERITING FROM lcl_sub_alv.
+  PUBLIC SECTION.
+    METHODS: generate_alv REDEFINITION.
+  PROTECTED SECTION.
+    METHODS: on_refresh_details REDEFINITION.
+ENDCLASS.                    "lcl_t100_details DEFINITION
+*
+CLASS lcl_t100a_info DEFINITION INHERITING FROM lcl_sub_alv.
+  PUBLIC SECTION.
+    METHODS: generate_alv REDEFINITION.
+  PROTECTED SECTION.
+    METHODS: on_refresh_details REDEFINITION.
+ENDCLASS.                    "lcl_t100a_info DEFINITION
+*
+CLASS lcl_main_app DEFINITION.
+  PUBLIC SECTION.
+    CLASS-METHODS: run.
+ENDCLASS.                    "lcl_main_app DEFINITION
+
+*==== Class Implementations
+CLASS lcl_t100_alv IMPLEMENTATION.
+  METHOD generate_alv.
+    SELECT * FROM t100 INTO TABLE t_t100 UP TO 5 ROWS
+      WHERE sprsl = sy-langu
+      AND arbgb = '00'.
+    SELECT * FROM t100 APPENDING TABLE t_t100 UP TO 5 ROWS
+      WHERE sprsl = sy-langu
+      AND arbgb = '01'.
+
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            r_container  = io_cont
+          IMPORTING
+            r_salv_table = o_salv
+          CHANGING
+            t_table      = t_t100 ).
+      CATCH cx_salv_msg.
+    ENDTRY.
+
+    DATA: lo_events TYPE REF TO cl_salv_events_table.
+    lo_events = o_salv->get_event( ).
+    SET HANDLER handle_double_click FOR lo_events.
+
+    o_salv->display( ).
+  ENDMETHOD.                    "generate_alv
+  METHOD handle_double_click.
+    DATA: lv_index TYPE i.
+    DATA: wa_t100 TYPE t100.
+    lv_index = row.
+    IF lv_index IS INITIAL.
+      lv_index = 1.
+    ENDIF.
+    READ TABLE t_t100 INTO wa_t100 INDEX lv_index.
+
+*   Let Dependent ALVs know that double click happend
+*   and refresh themshelves
+    RAISE EVENT refresh_details
+      EXPORTING wa_t100 = wa_t100.
+
+  ENDMETHOD.                    "HANDLE_DOUBLE_CLICK
+ENDCLASS.                    "lcl_t100_alv IMPLEMENTATION
+
+*
+CLASS lcl_t100_details IMPLEMENTATION.
+  METHOD generate_alv.
+
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            r_container  = io_cont
+          IMPORTING
+            r_salv_table = o_salv
+          CHANGING
+            t_table      = t_info ).
+      CATCH cx_salv_msg.
+    ENDTRY.
+
+*   Registering to catch the event REFRESH_DETAILS
+    SET HANDLER on_refresh_details FOR ALL INSTANCES.
+
+    o_salv->display( ).
+  ENDMETHOD.                    "generate_alv
+  METHOD on_refresh_details.
+
+    CLEAR t_info.
+
+*   select data
+    DATA: lwa_info LIKE LINE OF t_info.
+    lwa_info-key = 'Language'.
+    lwa_info-value = wa_t100-sprsl.
+    APPEND lwa_info TO t_info.
+
+    lwa_info-key = 'Application Area'.
+    lwa_info-value = wa_t100-arbgb.
+    APPEND lwa_info TO t_info.
+
+    lwa_info-key = 'Message number'.
+    lwa_info-value = wa_t100-msgnr.
+    APPEND lwa_info TO t_info.
+
+    lwa_info-key = 'Message Text'.
+    lwa_info-value = wa_t100-text.
+    APPEND lwa_info TO t_info.
+
+    o_salv->refresh( ).
+  ENDMETHOD.                    "refresh
+
+ENDCLASS.                    "lcl_t100_details IMPLEMENTATION
+*
+CLASS lcl_t100a_info IMPLEMENTATION.
+  METHOD generate_alv.
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            r_container  = io_cont
+          IMPORTING
+            r_salv_table = o_salv
+          CHANGING
+            t_table      = t_info ).
+      CATCH cx_salv_msg.
+    ENDTRY.
+
+*   Registering to catch the event REFRESH_DETAILS
+    SET HANDLER on_refresh_details FOR ALL INSTANCES.
+
+    o_salv->display( ).
+  ENDMETHOD.                    "generate_alv
+  METHOD on_refresh_details.
+
+*   select data
+    DATA: lwa_t100a TYPE t100a.
+    DATA: lwa_info LIKE LINE OF t_info.
+
+    SELECT SINGLE * FROM t100a
+      INTO lwa_t100a WHERE arbgb = wa_t100-arbgb.
+
+    CLEAR t_info.
+    lwa_info-key = 'Application Area'.
+    lwa_info-value = lwa_t100a-arbgb.
+    APPEND lwa_info TO t_info.
+
+    lwa_info-key = 'MASTERLAN'.
+    lwa_info-value = lwa_t100a-masterlang.
+    APPEND lwa_info TO t_info.
+
+    lwa_info-key = 'Description'.
+    lwa_info-value = lwa_t100a-stext.
+    APPEND lwa_info TO t_info.
+
+    o_salv->refresh( ).
+  ENDMETHOD.                    "refresh
+ENDCLASS.                    "lcl_t100a_info IMPLEMENTATION
+*
+CLASS lcl_main_app IMPLEMENTATION.
+  METHOD run.
+
+    DATA docking TYPE REF TO cl_gui_docking_container.
+    DATA: lo_t100_alv     TYPE REF TO lcl_t100_alv.
+    DATA: lo_t100_details TYPE REF TO lcl_sub_alv.
+    DATA: lo_t100a_info   TYPE REF TO lcl_sub_alv.
+
+    CREATE OBJECT docking
+      EXPORTING
+        repid = sy-repid
+        dynnr = '0100'
+        side  = docking->dock_at_top
+        ratio = 90.
+
+    DATA: lo_split  TYPE REF TO cl_gui_splitter_container,
+          lo_ch1    TYPE REF TO cl_gui_container,
+          lo_split2 TYPE REF TO cl_gui_splitter_container,
+          lo_ch2    TYPE REF TO cl_gui_container.
+    DATA: lo_temp TYPE REF TO cl_gui_container.
+
+    CREATE OBJECT lo_split
+      EXPORTING
+        parent  = docking
+        rows    = 2
+        columns = 1.
+
+    lo_split->set_row_height(
+        id      = 1
+        height  = 45
+         ).
+
+*   MAIN ALV
+    lo_temp = lo_split->get_container(
+                          row       = 1
+                          column    = 1 ).
+
+
+    CREATE OBJECT lo_t100_alv.
+    lo_t100_alv->generate_alv( lo_temp ).
+
+*   Bottom Container
+    lo_ch1 = lo_split->get_container(
+               row    = 2
+               column = 1
+               ).
+
+    CREATE OBJECT lo_split2
+      EXPORTING
+        parent  = lo_ch1
+        rows    = 1
+        columns = 3.
+
+
+*   SUB ALV 1
+    lo_temp = lo_split2->get_container(
+                          row       = 1
+                          column    = 1 ).
+    CREATE OBJECT lo_t100_details TYPE lcl_t100_details.
+    lo_t100_details->generate_alv( lo_temp ).
+
+*   SUB ALV2
+    lo_temp = lo_split2->get_container(
+                          row       = 1
+                          column    = 2 ).
+    CREATE OBJECT lo_t100a_info TYPE lcl_t100a_info.
+    lo_t100a_info->generate_alv( lo_temp ).
+
+  ENDMETHOD.                    "run
+ENDCLASS.                    "lcl_main_app IMPLEMENTATION
+
+START-OF-SELECTION.
+  lcl_main_app=>run( ).
+  CALL SCREEN 0100.
+
+*
+MODULE user_command_0100 INPUT.
+  CASE v_ok_code.
+    WHEN 'BACK'.
+      LEAVE PROGRAM.
+  ENDCASE.
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+
+*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'ZOBS'.
+ENDMODULE.                 " STATUS_0100  OUTPUT
