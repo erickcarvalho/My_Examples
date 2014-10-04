@@ -93,15 +93,15 @@ wa_zdemo-vend = 'V400'.
 wa_zdemo-month = 'MAY'.
 wa_zdemo-amt = 475.
 APPEND wa_zdemo TO it_zdemo.
-
-WRITE : / 'Initial Internal Table'.
-WRITE :/.
-WRITE :/(6) 'Vendor'.
-WRITE : (13) 'Month' .
-WRITE : (3) 'Amt' .
-LOOP AT it_zdemo INTO wa_zdemo.
-  WRITE :/ wa_zdemo-vend, wa_zdemo-month, wa_zdemo-amt.
-ENDLOOP.
+*
+*WRITE : / 'Initial Internal Table'.
+*WRITE :/.
+*WRITE :/(6) 'Vendor'.
+*WRITE : (13) 'Month' .
+*WRITE : (3) 'Amt' .
+*LOOP AT it_zdemo INTO wa_zdemo.
+*  WRITE :/ wa_zdemo-vend, wa_zdemo-month, wa_zdemo-amt.
+*ENDLOOP.
 
 ** This would create structure Vendor Jan13 Feb13 Mar13 etc ....
 
@@ -186,17 +186,46 @@ LOOP AT it_zdemo INTO wa_zdemo.
   CLEAR: wa_zdemo, wa_zdemo1.
 ENDLOOP.
 
-WRITE :/.
-WRITE : / 'Dynamic Internal Table'.
-WRITE :/.
+*WRITE :/.
+*WRITE : / 'Dynamic Internal Table'.
+*WRITE :/.
+*LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
+*  WRITE (10) : gw_dyn_fcat-coltext.
+*ENDLOOP.
+*WRITE :/.
+*LOOP AT <gfs_dyn_table> INTO <gfs_line>.
+*  LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
+*    ASSIGN COMPONENT gw_dyn_fcat-fieldname OF STRUCTURE <gfs_line> TO <fs1>.
+*    WRITE : <fs1>.
+*  ENDLOOP.
+*  WRITE :/      .
+*ENDLOOP.
+
+TYPE-POOLS: slis.
+
+DATA :    gw_alv_fieldcat      TYPE slis_fieldcat_alv ,
+          gt_alv_fieldcat      TYPE slis_t_fieldcat_alv.
+DATA:     lv_pos TYPE i.
+
 LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
-  WRITE (10) : gw_dyn_fcat-coltext.
+  lv_pos = lv_pos + 1.
+  gw_alv_fieldcat-fieldname     = gw_dyn_fcat-fieldname.
+  gw_alv_fieldcat-tabname       = gw_dyn_fcat-tabname.
+  gw_alv_fieldcat-seltext_l     = gw_dyn_fcat-coltext.
+  gw_alv_fieldcat-outputlen     = gw_dyn_fcat-outputlen.
+  gw_alv_fieldcat-col_pos       = lv_pos.
+  gw_alv_fieldcat-do_sum        = gw_dyn_fcat-do_sum.
+  gw_alv_fieldcat-emphasize     = gw_dyn_fcat-emphasize.
+  gw_alv_fieldcat-key           = gw_dyn_fcat-key.
+  gw_alv_fieldcat-no_out        = gw_dyn_fcat-no_out.
+  APPEND gw_alv_fieldcat TO gt_alv_fieldcat.
 ENDLOOP.
-WRITE :/.
-LOOP AT <gfs_dyn_table> INTO <gfs_line>.
-  LOOP AT gt_dyn_fcat INTO gw_dyn_fcat.
-    ASSIGN COMPONENT gw_dyn_fcat-fieldname OF STRUCTURE <gfs_line> TO <fs1>.
-    WRITE : <fs1>.
-  ENDLOOP.
-  WRITE :/      .
-ENDLOOP.
+
+CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+  EXPORTING
+    i_callback_program = sy-repid
+    it_fieldcat        = gt_alv_fieldcat
+    i_default          = 'X'
+    i_save             = 'A'
+  TABLES
+    t_outtab           = <gfs_dyn_table>.
